@@ -100,7 +100,7 @@ class Solver:
         new_policy = dict()
         max_diff = 0
 
-        # Loop over states
+        # Loop states
         for s in self.states:
             best_q = -float('inf')
             best_a = None
@@ -182,7 +182,7 @@ class Solver:
             for a in range(len(BEE_ACTIONS)):
                 expected_reward = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, BEE_ACTIONS[a]):
-                    expected_reward_list = self.process_reward(prob, next_state, reward, a)
+                    expected_reward_list = self.process_reward(prob, next_state, reward)
                     for ex_prob, _, ex_reward in expected_reward_list:
                         expected_reward += ex_prob * ex_reward
                 r_model[i, a] = expected_reward
@@ -190,18 +190,14 @@ class Solver:
         self.r_model = r_model
         self.converged = False
 
-    def process_reward(self, prob, next_state, reward, action):
+    def process_reward(self, prob, next_state, reward):
         outcomes = []
-        if next_state in self.terminal_states:
-            reward += 0
         if next_state.is_on_edge():
             reward -= 0.5
         if next_state.is_next_to_obstacle():
             reward -= 0.5
         if next_state.is_next_to_thorn():
-            reward -= 2
-        if action in [FORWARD, REVERSE]:
-            reward += 1
+            reward -= 5
         if next_state.is_not_adjacent_widget():
             reward -= next_state.distance_to_widget()
 
@@ -215,7 +211,6 @@ class Solver:
                     y_distance = center[1] - widget_location[1]
                     distance = (abs(x_distance) + abs(x_distance + y_distance) + abs(y_distance)) / 2
                     reward -= distance
-                    # print( "dis",distance, next_state.BEE_posit, next_state.widget_centres,center_dict)
         outcomes.append((prob, next_state, reward))
         return outcomes
 
@@ -286,7 +281,7 @@ class Solver:
             for a in range(len(BEE_ACTIONS)):
                 total = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, a):
-                    expected_reward_list = self.process_reward(prob, next_state, reward, a)
+                    expected_reward_list = self.process_reward(prob, next_state, reward)
                     for ex_prob, ex_next_state, ex_reward in expected_reward_list:
                         total += ex_prob * (ex_reward + self.environment.gamma * v_pi[ex_next_state])
                 if total > best_q:
