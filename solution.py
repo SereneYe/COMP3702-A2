@@ -252,15 +252,15 @@ class Solver:
 
     def process_reward(self, prob, next_state, reward):
         outcomes = []
-        if next_state.is_on_edge():
-            reward -= 0.5
-        if next_state.is_next_to_obstacle():
-            reward -= 0.5
-        if next_state.is_next_to_thorn():
-            reward -= 1.5  # 3 times the penalty of collision
-        if next_state.is_not_adjacent_widget():
-            reward -= next_state.distance_to_widget()
-
+        # if next_state.is_on_edge():
+        #     reward -= 0.5
+        # if next_state.is_next_to_obstacle():
+        #     reward -= 0.5
+        # if next_state.is_next_to_thorn():
+        #     reward -= 1.5  # 3 times the penalty of collision
+        # if next_state.is_not_adjacent_widget():
+        #     reward -= next_state.distance_to_widget()
+        #
         center_dict = self.target_center_dict
         widget_dict = dict(zip(next_state.widget_centres, next_state.environment.widget_types))
 
