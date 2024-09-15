@@ -69,5 +69,84 @@ class State:
         return State(self.environment, self.BEE_posit, self.BEE_orient, self.widget_centres, self.widget_orients,
                      force_valid=self.force_valid)
 
+    def is_on_edge(self):
+        return self.BEE_posit[0] == 0 or self.BEE_posit[0] == self.environment.n_rows - 1 or \
+               self.BEE_posit[1] == 0 or self.BEE_posit[1] == self.environment.n_cols - 1
+
+    def is_next_to_obstacle(self):
+        row, col = self.BEE_posit
+        neighbors = get_all_adjacent_cell_coords(row, col)
+        for dr, dc in neighbors:
+            neighbour_row, neighbour_col = row + dr, col + dc
+
+            if not (0 <= neighbour_row < self.environment.n_rows
+                    and 0 <= neighbour_col < self.environment.n_cols):
+                continue
+
+            if self.environment.obstacle_map[neighbour_row][neighbour_col] == 1:
+                return True
+
+        return False
+
+    def is_next_to_thorn(self):
+        row, col = self.BEE_posit
+        neighbors = get_all_adjacent_cell_coords(row, col)
+        for dr, dc in neighbors:
+            neighbour_row, neighbour_col = row + dr, col + dc
+
+            if not (0 <= neighbour_row < self.environment.n_rows
+                    and 0 <= neighbour_col < self.environment.n_cols):
+                continue
+
+            if self.environment.thorn_map[neighbour_row][neighbour_col] == 1:
+                return True
+
+        return False
+
+    def is_not_adjacent_widget(self):
+        for widget_position in self.widget_centres:
+            if min(abs(self.BEE_posit[0] - widget_position[0]),
+                   abs(self.BEE_posit[1] - widget_position[1])) <= 1:
+                return False
+        return True
+
+    def distance_to_widget(self):
+
+        for widget_position in self.widget_centres:
+            x_distance = self.BEE_posit[0] - widget_position[0]
+            y_distance = self.BEE_posit[1] - widget_position[1]
+            distance = min(abs(x_distance), abs(y_distance))
+
+        return distance
+
+
+
+
+def get_all_adjacent_cell_coords(row, col):
+    """
+    Get the coordinates of all adjacent cells in a hexagonal grid.
+    :param cell: Tuple (row, col) representing the current cell
+    :return: List of tuples representing the coordinates of all adjacent cells
+    """
+    if col % 2 == 0:  # even column
+        adjacent_cells = [
+            (row - 1, col),  # UP
+            (row + 1, col),  # DOWN
+            (row - 1, col - 1),  # UP_LEFT
+            (row - 1, col + 1),  # UP_RIGHT
+            (row, col - 1),  # DOWN_LEFT
+            (row, col + 1)  # DOWN_RIGHT
+        ]
+    else:  # odd column
+        adjacent_cells = [
+            (row - 1, col),  # UP
+            (row + 1, col),  # DOWN
+            (row, col - 1),  # UP_LEFT
+            (row, col + 1),  # UP_RIGHT
+            (row + 1, col - 1),  # DOWN_LEFT
+            (row + 1, col + 1)  # DOWN_RIGHT
+        ]
+    return adjacent_cells
+
 
 

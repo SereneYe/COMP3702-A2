@@ -942,7 +942,6 @@ def widget_get_occupied_cells(w_type, centre, orient):
 
     return occupied
 
-
 def widget_get_movement_type(BEE_orient, forward_BEE_posit, centre):
     """
     Test if the given forward BEE position and widget type, position and rotation results in a translation. Assumes
