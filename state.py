@@ -111,15 +111,12 @@ class State:
         return True
 
     def distance_to_widget(self):
-
+        distance = 0
         for widget_position in self.widget_centres:
             x_distance = self.BEE_posit[0] - widget_position[0]
             y_distance = self.BEE_posit[1] - widget_position[1]
-            distance = min(abs(x_distance), abs(y_distance))
-
+            distance = (abs(x_distance) + abs(x_distance + y_distance) + abs(y_distance)) / 2
         return distance
-
-
 
 
 def get_all_adjacent_cell_coords(row, col):

@@ -1,7 +1,6 @@
 import sys
 import time
 from collections import deque
-
 import numpy as np
 
 from constants import *
@@ -22,9 +21,6 @@ COMP3702 2022 Assignment 2 Support Code
 
 class Solver:
     def __init__(self, environment: Environment):
-
-
-        self.indexed_states = None
         self.environment = environment
         self.states = []
         self.policy = {}  # state:action
@@ -56,33 +52,6 @@ class Solver:
         self.policy = {s: BEE_ACTIONS[0] for s in self.states}
         self.values = {s: 0 for s in self.states}
         self.converged = False
-
-    def bfs_initialise(self):
-        initial_state = self.environment.get_init_state()
-        visited = {initial_state}
-        frontier = deque([initial_state])
-        states = set()
-
-        while frontier:
-            state = frontier.popleft()
-            states.add(state)
-            if self.environment.is_solved(state):
-                continue
-
-            for successor_state in self.get_successors(state):
-                if successor_state not in visited:
-                    visited.add(successor_state)
-                    frontier.append(successor_state)
-
-        self.states = list(states)
-
-    def get_successors(self, state):
-        successors = []
-        for action in BEE_ACTIONS:
-            cost, next_state = self.environment.apply_dynamics(state, action)
-            if next_state != state:
-                successors.append(next_state)
-        return successors
 
     def vi_is_converged(self):
         """
@@ -191,6 +160,96 @@ class Solver:
         self.r_model = r_model
         self.converged = False
 
+    def pi_is_converged(self):
+        """
+        Check if Policy Iteration has reached convergence.
+        :return: True if converged, False otherwise
+        """
+        return self.converged
+
+    def pi_iteration(self):
+        """
+        Perform a single iteration of Policy Iteration (i.e. perform one step of policy evaluation and one step of
+        policy improvement).
+        """
+        v_pi = self.policy_evaluation()
+        self.policy_improvement(v_pi)
+
+    def pi_plan_offline(self):
+        """
+        Plan using Policy Iteration.
+        """
+        # !!! In order to ensure compatibility with tester, you should not modify this method !!!
+        self.pi_initialise()
+        while True:
+            self.pi_iteration()
+            # NOTE: pi_iteration is always called before pi_is_converged
+            if self.pi_is_converged():
+                break
+
+    def pi_select_action(self, state: State):
+        """
+        Retrieve the optimal action for the given state (based on values computed by Value Iteration).
+        :param state: the current state
+        :return: optimal action for the given state (element of ROBOT_ACTIONS)
+        """
+        return self.policy[self.state_indices[state]]
+
+    # === Helper Methods ===============================================================================================
+
+    def get_successors(self, state):
+        successors = []
+        for action in BEE_ACTIONS:
+            cost, next_state = self.environment.apply_dynamics(state, action)
+            if next_state != state:
+                successors.append(next_state)
+        return successors
+
+    def bfs_initialise(self):
+        initial_state = self.environment.get_init_state()
+        visited = {initial_state}
+        frontier = deque([initial_state])
+        states = set()
+
+        while frontier:
+            state = frontier.popleft()
+            states.add(state)
+            if self.environment.is_solved(state):
+                continue
+
+            for successor_state in self.get_successors(state):
+                if successor_state not in visited:
+                    visited.add(successor_state)
+                    frontier.append(successor_state)
+
+        self.states = list(states)
+
+    def get_transition_outcomes(self, state, action):
+        if state in self.terminal_states:
+            return [(1.0, state, 0)]
+
+        outcomes = []
+        cw_double_prob = self.environment.double_move_probs[action] * self.environment.drift_cw_probs[action]
+        ccw_double_prob = self.environment.double_move_probs[action] * self.environment.drift_ccw_probs[action]
+        cw_prob = self.environment.drift_cw_probs[action] - cw_double_prob
+        ccw_prob = self.environment.drift_ccw_probs[action] - ccw_double_prob
+        double_prob = self.environment.double_move_probs[action] - cw_double_prob - ccw_double_prob
+        direct_prob = 1 - cw_prob - ccw_prob - double_prob - cw_double_prob - ccw_double_prob
+        probs = [direct_prob, cw_prob, ccw_prob, double_prob, cw_double_prob, ccw_double_prob]
+        actions = [[action], [SPIN_RIGHT, action], [SPIN_LEFT, action], [action, action],
+                   [SPIN_RIGHT, action, action], [SPIN_LEFT, action, action]]
+
+        for movement, prob in zip(actions, probs):
+            next_state = state
+            total_reward = float('inf')
+            for act in movement:
+                reward, next_state = self.environment.apply_dynamics(next_state, act)
+                if reward < total_reward:
+                    total_reward = reward
+            else:
+                outcomes.append((prob, next_state, total_reward))
+        return outcomes
+
     def process_reward(self, prob, next_state, reward):
         outcomes = []
         if next_state.is_on_edge():
@@ -215,43 +274,6 @@ class Solver:
         outcomes.append((prob, next_state, reward))
         return outcomes
 
-    def pi_is_converged(self):
-        """
-        Check if Policy Iteration has reached convergence.
-        :return: True if converged, False otherwise
-        """
-        return self.converged
-
-    def pi_iteration(self):
-        """
-        Perform a single iteration of Policy Iteration (i.e. perform one step of policy evaluation and one step of
-        policy improvement).
-        """
-        v_pi = self.policy_evaluation()
-        self.policy_improvement(v_pi)
-
-    def pi_plan_offline(self):
-        """
-        Plan using Policy Iteration.
-        """
-        # !!! In order to ensure compatibility with tester, you should not modify this method !!!
-        self.pi_initialise()
-        while True:
-            self.pi_iteration()
-
-            # NOTE: pi_iteration is always called before pi_is_converged
-            if self.pi_is_converged():
-                break
-
-    def pi_select_action(self, state: State):
-        """
-        Retrieve the optimal action for the given state (based on values computed by Value Iteration).
-        :param state: the current state
-        :return: optimal action for the given state (element of ROBOT_ACTIONS)
-        """
-        return self.policy[self.state_indices[state]]
-
-    # === Helper Methods ===============================================================================================
     def policy_evaluation(self):
         """
         Evaluate the current policy.
@@ -299,6 +321,7 @@ class Solver:
         self.converged = not policy_changed
 
     def get_target_center_dict(self):
+        """Find the center points of the target widgets, reuse the code from my assignment 1"""
         target_list_copy = self.environment.target_list.copy()
         center_points = {}
         nums = sorted((int(num) for num in self.environment.widget_types), reverse=True)
@@ -329,32 +352,6 @@ class Solver:
             target_list_copy.remove(random_point)
 
         return center_points
-
-    def get_transition_outcomes(self, state, action):
-        if state in self.terminal_states:
-            return [(1.0, state, 0)]
-
-        outcomes = []
-        cw_double_prob = self.environment.double_move_probs[action] * self.environment.drift_cw_probs[action]
-        ccw_double_prob = self.environment.double_move_probs[action] * self.environment.drift_ccw_probs[action]
-        cw_prob = self.environment.drift_cw_probs[action] - cw_double_prob
-        ccw_prob = self.environment.drift_ccw_probs[action] - ccw_double_prob
-        double_prob = self.environment.double_move_probs[action] - cw_double_prob - ccw_double_prob
-        direct_prob = 1 - cw_prob - ccw_prob - double_prob - cw_double_prob - ccw_double_prob
-        probs = [direct_prob, cw_prob, ccw_prob, double_prob, cw_double_prob, ccw_double_prob]
-        actions = [[action], [SPIN_RIGHT, action], [SPIN_LEFT, action], [action, action],
-                   [SPIN_RIGHT, action, action], [SPIN_LEFT, action, action]]
-
-        for movement, prob in zip(actions, probs):
-            next_state = state
-            total_reward = float('inf')
-            for act in movement:
-                reward, next_state = self.environment.apply_dynamics(next_state, act)
-                if reward < total_reward:
-                    total_reward = reward
-            else:
-                outcomes.append((prob, next_state, total_reward))
-        return outcomes
 
 
 def get_all_adjacent_cell_coords(row, col):
