@@ -23,10 +23,12 @@ COMP3702 2022 Assignment 2 Support Code
 class Solver:
     def __init__(self, environment: Environment):
 
+
+        self.indexed_states = None
         self.environment = environment
         self.states = []
-        self.values = {}  # state:values
         self.policy = {}  # state:action
+        self.values = {}  # state:value
         self.terminal_states = []
         self.converged = False
         self.EPSILON = 0.01
@@ -53,30 +55,26 @@ class Solver:
         self.terminal_states = [s for s in self.states if self.environment.is_solved(s)]
         self.policy = {s: BEE_ACTIONS[0] for s in self.states}
         self.values = {s: 0 for s in self.states}
-        next_state_set = set()
-        for a in BEE_ACTIONS:
-            for s in self.states:
-                for prob, next_state, reward in self.get_transition_outcomes(s, a):
-                    next_state_set.add(next_state)
         self.converged = False
 
     def bfs_initialise(self):
         initial_state = self.environment.get_init_state()
-        visited = set()
+        visited = {initial_state}
         frontier = deque([initial_state])
+        states = set()
 
         while frontier:
             state = frontier.popleft()
+            states.add(state)
             if self.environment.is_solved(state):
                 continue
 
-            successors = self.get_successors(state)
-            for successor_state in successors:
+            for successor_state in self.get_successors(state):
                 if successor_state not in visited:
                     visited.add(successor_state)
                     frontier.append(successor_state)
 
-        self.states = list(visited)
+        self.states = list(states)
 
     def get_successors(self, state):
         successors = []
@@ -128,7 +126,6 @@ class Solver:
 
         self.policy = new_policy
 
-
     def vi_plan_offline(self):
         """
         Plan using Value Iteration.
@@ -167,24 +164,28 @@ class Solver:
         self.bfs_initialise()
         self.terminal_states = {s for s in self.states if self.environment.is_solved(s)}
         self.state_indices = {s: i for i, s in enumerate(self.states)}
-        self.values = {s: 0 for s in self.states}
+
         self.t_model = np.zeros([len(self.states), len(BEE_ACTIONS), len(self.states)])
         for i, s in enumerate(self.states):
             for j, a in enumerate(BEE_ACTIONS):
                 for prob, next_state, _ in self.get_transition_outcomes(s, a):
-                    self.t_model[i][j][self.states.index(next_state)] += prob
+                    # only add this for ex9 as bfs could not find all states in one go
+                    if next_state in self.state_indices:
+                        k = self.state_indices[next_state]
+                        self.t_model[i][j][k] += prob
 
         self.policy = np.zeros([len(self.states)], dtype=np.int64)
-
         r_model = np.zeros([len(self.states), len(BEE_ACTIONS)])
 
         for i, s in enumerate(self.states):
             for a in range(len(BEE_ACTIONS)):
                 expected_reward = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, BEE_ACTIONS[a]):
-                    expected_reward_list = self.process_reward(prob, next_state, reward)
-                    for ex_prob, _, ex_reward in expected_reward_list:
-                        expected_reward += ex_prob * ex_reward
+                    # only add this for ex9 as bfs could not find all states in one go
+                    if next_state in self.state_indices:
+                        expected_reward_list = self.process_reward(prob, next_state, reward)
+                        for ex_prob, _, ex_reward in expected_reward_list:
+                            expected_reward += ex_prob * ex_reward
                 r_model[i, a] = expected_reward
 
         self.r_model = r_model
@@ -197,7 +198,7 @@ class Solver:
         if next_state.is_next_to_obstacle():
             reward -= 0.5
         if next_state.is_next_to_thorn():
-            reward -= 5
+            reward -= 1.5  # 3 times the penalty of collision
         if next_state.is_not_adjacent_widget():
             reward -= next_state.distance_to_widget()
 
@@ -281,9 +282,11 @@ class Solver:
             for a in range(len(BEE_ACTIONS)):
                 total = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, a):
-                    expected_reward_list = self.process_reward(prob, next_state, reward)
-                    for ex_prob, ex_next_state, ex_reward in expected_reward_list:
-                        total += ex_prob * (ex_reward + self.environment.gamma * v_pi[ex_next_state])
+                    # only add this for ex9 as bfs could not find all states in one go
+                    if next_state in self.state_indices:
+                        expected_reward_list = self.process_reward(prob, next_state, reward)
+                        for ex_prob, ex_next_state, ex_reward in expected_reward_list:
+                            total += ex_prob * (ex_reward + self.environment.gamma * v_pi[ex_next_state])
                 if total > best_q:
                     best_q = total
                     best_a = a
