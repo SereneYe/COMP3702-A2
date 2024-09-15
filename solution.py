@@ -132,6 +132,7 @@ class Solver:
         """
         self.bfs_initialise()
         self.terminal_states = {s for s in self.states if self.environment.is_solved(s)}
+        print(self.terminal_states)
         self.state_indices = {s: i for i, s in enumerate(self.states)}
 
         self.t_model = np.zeros([len(self.states), len(BEE_ACTIONS), len(self.states)])
@@ -146,15 +147,18 @@ class Solver:
         self.policy = np.zeros([len(self.states)], dtype=np.int64)
         r_model = np.zeros([len(self.states), len(BEE_ACTIONS)])
 
+
+
         for i, s in enumerate(self.states):
             for a in range(len(BEE_ACTIONS)):
                 expected_reward = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, BEE_ACTIONS[a]):
                     # only add this for ex9 as bfs could not find all states in one go
-                    if next_state in self.state_indices:
-                        expected_reward_list = self.process_reward(prob, next_state, reward)
-                        for ex_prob, _, ex_reward in expected_reward_list:
-                            expected_reward += ex_prob * ex_reward
+                    expected_reward += prob * reward
+                    # if next_state in self.state_indices:
+                    #     expected_reward_list = self.process_reward(prob, next_state, reward)
+                    #     for ex_prob, _, ex_reward in expected_reward_list:
+                    #         expected_reward += ex_prob * ex_reward
                 r_model[i, a] = expected_reward
 
         self.r_model = r_model
@@ -298,6 +302,7 @@ class Solver:
         Improve the current policy.
         """
         policy_changed = False
+        print(v_pi)
         for s in self.states:
             best_q = -float('inf')
             best_a = None
@@ -305,10 +310,12 @@ class Solver:
                 total = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, a):
                     # only add this for ex9 as bfs could not find all states in one go
-                    if next_state in self.state_indices:
-                        expected_reward_list = self.process_reward(prob, next_state, reward)
-                        for ex_prob, ex_next_state, ex_reward in expected_reward_list:
-                            total += ex_prob * (ex_reward + self.environment.gamma * v_pi[ex_next_state])
+                    total += prob * (reward + self.environment.gamma * v_pi[next_state])
+                    # if next_state in self.state_indices:
+                    #     expected_reward_list = self.process_reward(prob, next_state, reward)
+                    #     for ex_prob, ex_next_state, ex_reward in expected_reward_list:
+                    #         total += ex_prob * (ex_reward + self.environment.gamma * v_pi[ex_next_state])
+
                 if total > best_q:
                     best_q = total
                     best_a = a
