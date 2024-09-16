@@ -152,15 +152,13 @@ class Solver:
                 expected_reward = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, BEE_ACTIONS[a]):
                     # only add this for ex9 as bfs could not find all states in one go
-                    expected_reward += prob * reward
-                    # if next_state in self.state_indices:
-                    #     expected_reward_list = self.process_reward(prob, next_state, reward)
-                    #     for ex_prob, _, ex_reward in expected_reward_list:
-                    #         expected_reward += ex_prob * ex_reward
+                    if next_state in self.state_indices:
+                        expected_reward_list = self.process_reward(prob, next_state, reward)
+                        for ex_prob, _, ex_reward in expected_reward_list:
+                            expected_reward += ex_prob * ex_reward
                 r_model[i, a] = expected_reward
 
         self.r_model = r_model
-        print(self.r_model)
         self.converged = False
 
     def pi_is_converged(self):
@@ -285,7 +283,6 @@ class Solver:
         # solve for V^pi(s) using linear algebra
         v_pi = np.linalg.solve(np.identity(len(self.states)) - self.environment.gamma * t_pi, r_pi)
         # convert values vector to dict and return
-
         return {s: v_pi[self.state_indices[s]] for s in self.states}
 
     def policy_improvement(self, v_pi):
@@ -293,7 +290,6 @@ class Solver:
         Improve the current policy.
         """
         policy_changed = False
-        print(v_pi)
         for s in self.states:
             best_q = -float('inf')
             best_a = None
@@ -301,11 +297,10 @@ class Solver:
                 total = 0
                 for prob, next_state, reward in self.get_transition_outcomes(s, a):
                     # only add this for ex9 as bfs could not find all states in one go
-                    total += prob * (reward + self.environment.gamma * v_pi[next_state])
-                    # if next_state in self.state_indices:
-                    #     expected_reward_list = self.process_reward(prob, next_state, reward)
-                    #     for ex_prob, ex_next_state, ex_reward in expected_reward_list:
-                    #         total += ex_prob * (ex_reward + self.environment.gamma * v_pi[ex_next_state])
+                    if next_state in self.state_indices:
+                        expected_reward_list = self.process_reward(prob, next_state, reward)
+                        for ex_prob, ex_next_state, ex_reward in expected_reward_list:
+                            total += ex_prob * (ex_reward + self.environment.gamma * v_pi[ex_next_state])
 
                 if total > best_q:
                     best_q = total
@@ -348,7 +343,6 @@ class Solver:
             random_point = random.choice(target_list_copy)
             center_points[random_point] = len(target_list_copy)
             target_list_copy.remove(random_point)
-
         return center_points
 
 
