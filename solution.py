@@ -147,8 +147,6 @@ class Solver:
         self.policy = np.zeros([len(self.states)], dtype=np.int64)
         r_model = np.zeros([len(self.states), len(BEE_ACTIONS)])
 
-
-
         for i, s in enumerate(self.states):
             for a in range(len(BEE_ACTIONS)):
                 expected_reward = 0
@@ -162,6 +160,7 @@ class Solver:
                 r_model[i, a] = expected_reward
 
         self.r_model = r_model
+        print(self.r_model)
         self.converged = False
 
     def pi_is_converged(self):
@@ -256,15 +255,6 @@ class Solver:
 
     def process_reward(self, prob, next_state, reward):
         outcomes = []
-        # if next_state.is_on_edge():
-        #     reward -= 0.5
-        # if next_state.is_next_to_obstacle():
-        #     reward -= 0.5
-        # if next_state.is_next_to_thorn():
-        #     reward -= 1.5  # 3 times the penalty of collision
-        # if next_state.is_not_adjacent_widget():
-        #     reward -= next_state.distance_to_widget()
-        #
         center_dict = self.target_center_dict
         widget_dict = dict(zip(next_state.widget_centres, next_state.environment.widget_types))
 
@@ -295,6 +285,7 @@ class Solver:
         # solve for V^pi(s) using linear algebra
         v_pi = np.linalg.solve(np.identity(len(self.states)) - self.environment.gamma * t_pi, r_pi)
         # convert values vector to dict and return
+
         return {s: v_pi[self.state_indices[s]] for s in self.states}
 
     def policy_improvement(self, v_pi):
